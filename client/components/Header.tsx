@@ -25,10 +25,7 @@ export default function Header() {
           >
             Login
           </Link>
-          <button
-            className="flex-shrink-0"
-            aria-label="Profile"
-          >
+          <button className="flex-shrink-0" aria-label="Profile">
             <svg
               className="w-8 h-8 md:w-[39px] md:h-[39px]"
               viewBox="0 0 39 39"

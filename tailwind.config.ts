@@ -14,7 +14,13 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Instrument Sans', '-apple-system', 'Roboto', 'Helvetica', 'sans-serif'],
+        sans: [
+          "Instrument Sans",
+          "-apple-system",
+          "Roboto",
+          "Helvetica",
+          "sans-serif",
+        ],
       },
       colors: {
         border: "hsl(var(--border))",
