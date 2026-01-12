@@ -6,3 +6,4 @@ librosa
 Pillow
 requests
 scikit-learn
+python-multipart
