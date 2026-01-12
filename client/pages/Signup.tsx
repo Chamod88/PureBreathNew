@@ -3,96 +3,62 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, useNavigate } from "react-router-dom";
-import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LoginRequest, GoogleLoginRequest } from "@shared/api";
+import { SignupRequest } from "@shared/api";
 
-const loginSchema = z.object({
+const signupSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
+  age: z.number().min(1, "Age must be at least 1").max(120, "Age must be less than 120").optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type SignupForm = z.infer<typeof signupSchema>;
 
-export default function Login() {
+export default function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { toast } = useToast();
   const authApiUrl = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:3000';
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema),
   });
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${authApiUrl}/api/auth/login`, {
+      const response = await fetch(`${authApiUrl}/api/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data as LoginRequest),
+        body: JSON.stringify(data as SignupRequest),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Login failed");
+        throw new Error(errorData.message || "Signup failed");
       }
 
       const result = await response.json();
       login(result.token, result.user);
-      toast({
-        title: "Login successful",
-        description: "Welcome back! You have been logged in successfully.",
-      });
-      navigate("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async (credentialResponse: any) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${authApiUrl}/api/auth/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ credential: credentialResponse.credential } as GoogleLoginRequest),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Google login failed");
-      }
-
-      const result = await response.json();
-      login(result.token, result.user);
-      toast({
-        title: "Login successful",
-        description: "Welcome back! You have been logged in successfully.",
-      });
       navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -107,9 +73,9 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center bg-[#E9EDF0] p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Login</CardTitle>
+            <CardTitle className="text-2xl text-center">Sign Up</CardTitle>
             <CardDescription className="text-center">
-              Enter your credentials to access your account
+              Create your account to get started
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -140,6 +106,32 @@ export default function Login() {
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  {...register("confirmPassword")}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="age">Age (Optional)</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  placeholder="Enter your age"
+                  {...register("age", { valueAsNumber: true })}
+                />
+                {errors.age && (
+                  <p className="text-sm text-red-600">{errors.age.message}</p>
+                )}
+              </div>
+
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
@@ -147,37 +139,15 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? "Signing up..." : "Sign Up"}
               </Button>
             </form>
 
-            <div className="mt-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              <div className="mt-4">
-                <GoogleLogin
-                  onSuccess={handleGoogleLogin}
-                  onError={() => setError("Google login failed")}
-                  theme="outline"
-                  size="large"
-                  width="100%"
-                />
-              </div>
-            </div>
-
             <div className="mt-4 text-center">
               <p className="text-sm text-gray-600">
-                Don't have an account?{" "}
-                <Link to="/signup" className="text-primary hover:underline">
-                  Sign up
+                Already have an account?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Login
                 </Link>
               </p>
             </div>

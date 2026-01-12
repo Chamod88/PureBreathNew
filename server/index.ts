@@ -1,9 +1,14 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { connectDB } from "./db";
 import { handleDemo } from "./routes/demo";
+import { handleLogin, handleSignup, handleGoogleLogin } from "./routes/auth";
+import { saveAnalysis, getUserHistory } from "./routes/analysis";
 
-export function createServer() {
+export async function createServer() {
+  await connectDB();
+
   const app = express();
 
   // Middleware
@@ -18,6 +23,15 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+
+  // Auth routes
+  app.post("/api/auth/login", handleLogin);
+  app.post("/api/auth/signup", handleSignup);
+  app.post("/api/auth/google", handleGoogleLogin);
+
+  // Analysis routes
+  app.post("/api/analysis/save", saveAnalysis);
+  app.get("/api/analysis/history/:userId", getUserHistory);
 
   return app;
 }

@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
+import LearnMore from "@/components/LearnMore";
 
 export default function Index() {
   return (
@@ -8,6 +9,7 @@ export default function Index() {
       <Header />
       <Hero />
       <Features />
+      <LearnMore />
     </div>
   );
 }
