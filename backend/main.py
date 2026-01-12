@@ -21,15 +21,19 @@ app.add_middleware(
 )
 
 # =======================
-# LOAD MODEL
+# LAZY MODEL LOADING
 # =======================
-MODEL_PATH = os.path.join("model", "lung_disease_model.h5")
-
-print("Loading ML model...")
-model = tf.keras.models.load_model(MODEL_PATH)
-print("Model loaded successfully.")
-
+_model = None
 CLASS_NAMES = ["healthy", "copd", "pneumonia"]
+
+def get_model():
+    global _model
+    if _model is None:
+        model_path = os.path.join("model", "lung_disease_model.h5")
+        print("Loading ML model...")
+        _model = tf.keras.models.load_model(model_path, compile=False)
+        print("Model loaded successfully.")
+    return _model
 
 # =======================
 # AUDIO PREPROCESSING
@@ -85,6 +89,9 @@ async def predict(file: UploadFile = File(...), userId: str = Form(None)):
     # Preprocess audio
     tensor = audio_to_tensor(file_bytes)
 
+    # Load model lazily
+    model = get_model()
+
     # Run prediction
     preds = model.predict(tensor)
     pred_index = int(np.argmax(preds))
@@ -109,7 +116,11 @@ async def predict(file: UploadFile = File(...), userId: str = Form(None)):
             }
 
             # Call Node.js API to save analysis
-            response = requests.post("http://localhost:3000/api/analysis/save", json=analysis_data, timeout=5)
+            response = requests.post(
+                "http://localhost:3000/api/analysis/save",
+                json=analysis_data,
+                timeout=5
+            )
             if response.status_code != 201:
                 print(f"Failed to save analysis: {response.text}")
         except Exception as e:
