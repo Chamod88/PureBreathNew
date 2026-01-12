@@ -122,8 +122,9 @@ async def predict(file: UploadFile = File(...), userId: str = Form(None)):
             }
 
             # Call Node.js API to save analysis
+            api_url = os.getenv("API_URL", "http://localhost:3000")
             response = requests.post(
-                "http://localhost:3000/api/analysis/save",
+                f"{api_url}/api/analysis/save",
                 json=analysis_data,
                 timeout=5
             )
