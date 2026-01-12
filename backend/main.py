@@ -4,90 +4,85 @@ import tensorflow as tf
 import os
 import librosa
 import numpy as np
+import matplotlib.pyplot as plt
 from io import BytesIO
 from PIL import Image
 import requests
 import time
 
 # =======================
-# APP SETUP
+# FastAPI App Setup
 # =======================
-app = FastAPI()
+app = FastAPI(title="PureBreath Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten later if needed
+    allow_origins=["*"],  # Allow all origins or specify your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # =======================
-# MODEL CONFIG
+# Lazy Model Loading
 # =======================
 _model = None
 CLASS_NAMES = ["healthy", "copd", "pneumonia"]
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "lung_disease_model.h5")
-
-# =======================
-# LAZY MODEL LOADING
-# =======================
 def get_model():
     global _model
     if _model is None:
+        model_path = os.path.join("model", "lung_disease_model.h5")
         print("Loading ML model...")
-        _model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        _model = tf.keras.models.load_model(model_path, compile=False)
         print("Model loaded successfully.")
     return _model
 
 # =======================
-# MEL SPECTROGRAM → IMAGE
+# Audio Preprocessing
 # =======================
-def mel_to_image(mel_db: np.ndarray) -> Image.Image:
-    # Normalize to 0–255
-    mel_norm = mel_db - mel_db.min()
-    mel_norm = mel_norm / (mel_norm.max() + 1e-6)
-    mel_norm = (mel_norm * 255).astype(np.uint8)
-
-    # Convert to RGB image
-    img = Image.fromarray(mel_norm)
-    img = img.convert("RGB")
-    img = img.resize((224, 224))
-
-    return img
-
-# =======================
-# AUDIO PREPROCESSING
-# =======================
-def audio_to_tensor(file_bytes: bytes, sr: int = 22050) -> np.ndarray:
+def audio_to_tensor(file_bytes, sr=22050):
+    # Load audio
     y, sr = librosa.load(BytesIO(file_bytes), sr=sr)
     y, _ = librosa.effects.trim(y)
     y = librosa.util.normalize(y)
 
+    # Mel spectrogram
     mel = librosa.feature.melspectrogram(y=y, sr=sr)
     mel_db = librosa.power_to_db(mel, ref=np.max)
 
-    img = mel_to_image(mel_db)
+    # Convert to image
+    fig = plt.figure(figsize=(3, 3))
+    plt.axis("off")
+    librosa.display.specshow(mel_db, sr=sr)
+    buf = BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
 
-    img_array = np.array(img, dtype=np.float32) / 255.0
+    # Load image and resize
+    buf.seek(0)
+    img = Image.open(buf).convert("RGB")
+    img = img.resize((224, 224))
+
+    # Convert to numpy tensor
+    img_array = np.array(img) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
     return img_array
 
 # =======================
-# ROUTES
+# Routes
 # =======================
 @app.get("/")
 def root():
     return {"message": "PureBreath backend is running"}
 
+@app.get("/favicon.ico")
+def favicon():
+    return {}
+
 @app.post("/predict")
-async def predict(
-    file: UploadFile = File(...),
-    userId: str = Form(None)
-):
+async def predict(file: UploadFile = File(...), userId: str = Form(None)):
     start_time = time.time()
     file_bytes = await file.read()
 
@@ -95,25 +90,24 @@ async def predict(
     try:
         y, sr = librosa.load(BytesIO(file_bytes), sr=None)
         duration = len(y) / sr
-    except Exception:
+    except:
         duration = None
 
     # Preprocess
     tensor = audio_to_tensor(file_bytes)
 
-    # Predict
+    # Load model lazily
     model = get_model()
+
+    # Predict
     preds = model.predict(tensor)
     pred_index = int(np.argmax(preds))
     confidence = float(np.max(preds))
-
     disease = CLASS_NAMES[pred_index]
-    processing_time = int((time.time() - start_time) * 1000)
+    processing_time = int((time.time() - start_time) * 1000)  # ms
 
-    # Optional DB save (only if configured)
-    ANALYSIS_API_URL = os.getenv("ANALYSIS_API_URL")
-
-    if userId and ANALYSIS_API_URL:
+    # Save analysis if userId is provided
+    if userId:
         try:
             analysis_data = {
                 "userId": userId,
@@ -127,13 +121,16 @@ async def predict(
                 "modelVersion": "1.0.0"
             }
 
-            requests.post(
-                f"{ANALYSIS_API_URL}/api/analysis/save",
+            # Call Node.js API to save analysis
+            response = requests.post(
+                "http://localhost:3000/api/analysis/save",
                 json=analysis_data,
                 timeout=5
             )
+            if response.status_code != 201:
+                print(f"Failed to save analysis: {response.text}")
         except Exception as e:
-            print(f"Analysis save failed: {e}")
+            print(f"Error saving analysis: {e}")
 
     return {
         "prediction": disease,
