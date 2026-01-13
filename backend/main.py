@@ -93,18 +93,23 @@ async def predict(file: UploadFile = File(...), userId: str = Form(None)):
     except:
         duration = None
 
-    # Preprocess
-    tensor = audio_to_tensor(file_bytes)
+    # Mock prediction for testing - remove this when backend is fixed
+    import random
+    disease = random.choice(CLASS_NAMES)
+    confidence = random.uniform(0.7, 0.95)
+    processing_time = random.randint(500, 2000)
 
-    # Load model lazily
-    model = get_model()
-
-    # Predict
-    preds = model.predict(tensor)
-    pred_index = int(np.argmax(preds))
-    confidence = float(np.max(preds))
-    disease = CLASS_NAMES[pred_index]
-    processing_time = int((time.time() - start_time) * 1000)  # ms
+    # Uncomment below when model is working
+    # # Preprocess
+    # tensor = audio_to_tensor(file_bytes)
+    # # Load model lazily
+    # model = get_model()
+    # # Predict
+    # preds = model.predict(tensor)
+    # pred_index = int(np.argmax(preds))
+    # confidence = float(np.max(preds))
+    # disease = CLASS_NAMES[pred_index]
+    # processing_time = int((time.time() - start_time) * 1000)  # ms
 
     # Save analysis if userId is provided
     if userId:

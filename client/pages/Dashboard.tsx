@@ -16,8 +16,9 @@ export default function Dashboard() {
     const [fileError, setFileError] = useState(null);
     const [uploadError, setUploadError] = useState(null);
     const fileInputRef = useRef(null);
-    // const analysisApiUrl = import.meta.env.VITE_ANALYSIS_API_URL || 'http://localhost:8000';
-    const analysisApiUrl =  "https://purebreathnew.onrender.com";
+    //  const analysisApiUrl = import.meta.env.VITE_ANALYSIS_API_URL || 'http://localhost:8000';
+    // const analysisApiUrl =  "https://purebreathnew.onrender.com";
+  const analysisApiUrl =  "https://purebreathnew-production.up.railway.app";
     const authApiUrl = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:3000';
     const [reportDialogOpen, setReportDialogOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState(null);
